@@ -4,23 +4,6 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 
-class CharacteristicCallbacks: public BLECharacteristicCallbacks {
-    void onRead(BLECharacteristic* characteristic) {
-      auto pin = (gpio_num_t)characteristic->getUUID().getNative()->uuid.uuid128[0];
-      gpio_set_direction(pin, GPIO_MODE_INPUT);
-      gpio_set_pull_mode(pin, GPIO_PULLUP_ONLY);
-      auto level = (uint8_t)gpio_get_level(pin);
-      characteristic->setValue(&level, 1);
-    }
-
-    void onWrite(BLECharacteristic *characteristic) {
-      auto pin = (gpio_num_t)characteristic->getUUID().getNative()->uuid.uuid128[0];
-      auto value = (uint8_t)characteristic->getValue()[0];
-      gpio_set_direction(pin, GPIO_MODE_OUTPUT);
-      gpio_set_level(pin, value);
-    }
-};
-
 void setup() {
   BLEDevice::init("BLE-GPIO Bridge");
 
@@ -30,7 +13,7 @@ void setup() {
 
   auto baseCharacteristicID = BLEUUID("1117b92a-6922-46d8-8c9e-000000000000");
 
-class CharacteristicCallbacks: public BLECharacteristicCallbacks {
+class: public BLECharacteristicCallbacks {
     void onRead(BLECharacteristic* characteristic) {
       auto pin = (gpio_num_t)characteristic->getUUID().getNative()->uuid.uuid128[0];
       gpio_set_direction(pin, GPIO_MODE_INPUT);
