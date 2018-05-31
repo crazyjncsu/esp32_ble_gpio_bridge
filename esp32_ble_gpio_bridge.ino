@@ -30,14 +30,29 @@ void setup() {
 
   auto baseCharacteristicID = BLEUUID("1117b92a-6922-46d8-8c9e-000000000000");
 
-  auto callbacks = new CharacteristicCallbacks();
+class CharacteristicCallbacks: public BLECharacteristicCallbacks {
+    void onRead(BLECharacteristic* characteristic) {
+      auto pin = (gpio_num_t)characteristic->getUUID().getNative()->uuid.uuid128[0];
+      gpio_set_direction(pin, GPIO_MODE_INPUT);
+      gpio_set_pull_mode(pin, GPIO_PULLUP_ONLY);
+      auto level = (uint8_t)gpio_get_level(pin);
+      characteristic->setValue(&level, 1);
+    }
+
+    void onWrite(BLECharacteristic *characteristic) {
+      auto pin = (gpio_num_t)characteristic->getUUID().getNative()->uuid.uuid128[0];
+      auto value = (uint8_t)characteristic->getValue()[0];
+      gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+      gpio_set_level(pin, value);
+    }
+} callbacks;
 
   for (auto i = 0; i < GPIO_NUM_MAX; i++) {
     auto nativeCharacteristicID = *baseCharacteristicID.getNative();
     nativeCharacteristicID.uuid.uuid128[0] = i;
 
     auto characteristic = service->createCharacteristic( BLEUUID(nativeCharacteristicID), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-    characteristic->setCallbacks(callbacks); ESP_GATT_UUID_HID_PROTO_MODE;
+    characteristic->setCallbacks(callbacks);
   }
 
   service->start();
