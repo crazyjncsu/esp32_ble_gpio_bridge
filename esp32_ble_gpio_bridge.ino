@@ -9,20 +9,25 @@ gpio_num_t characteristicToPin(BLECharacteristic* characteristic) {
 }
 
 boolean isPinValid(gpio_num_t pin) {
-  if (pin > 1 && pin < 20)
-    return true;
+  if (pin < GPIO_NUM_0 || pin >= GPIO_NUM_MAX)
+    return false;
+
+  if (pin >= GPIO_NUM_7  && pin <= GPIO_NUM_10)
+    return false;
+
+  if (pin >= GPIO_NUM_34  && pin <= GPIO_NUM_39) // can't output or pull up
+    return false;
+
+  return true;
 }
 
-void setup() {
-  BLEDevice::init("BLE-GPIO Bridge");
+BLEUUID createUUID(BLEUUID baseUUID, uint8_t subID) {
+  auto nativeID = *baseUUID.getNative();
+  nativeID.uuid.uuid128[0] = subID;
+  return BLEUUID(nativeID);
+}
 
-  auto server = BLEDevice::createServer();
-
-  auto service = server->createService(BLEUUID("b350d77d-68bf-49f4-b58d-4f3ea9af0588"), GPIO_NUM_MAX * 3); // number of handles is related to number of characteristics
-
-  auto baseCharacteristicID = BLEUUID("1117b92a-6922-46d8-8c9e-000000000000");
-
-class: public BLECharacteristicCallbacks {
+class CharacteristicCallbacks: public BLECharacteristicCallbacks {
     void onRead(BLECharacteristic* characteristic) {
       auto pin = characteristicToPin(characteristic);
       gpio_set_direction(pin, GPIO_MODE_INPUT);
@@ -37,14 +42,22 @@ class: public BLECharacteristicCallbacks {
       gpio_set_direction(pin, GPIO_MODE_OUTPUT);
       gpio_set_level(pin, value);
     }
-} callbacks;
+};
 
-  for (auto i = 0; i < GPIO_NUM_MAX; i++) {
+void setup() {
+  BLEDevice::init("BLE-GPIO Bridge");
+
+  auto baseUUID = BLEUUID("1117b92a-6922-46d8-8c9e-000000000000");
+
+  auto server = BLEDevice::createServer();
+
+  auto service = server->createService(createUUID(baseUUID, 255), GPIO_NUM_MAX * 3); // number of handles is related to number of characteristics
+
+  auto callbacks = new CharacteristicCallbacks();
+
+  for (auto i = GPIO_NUM_0; i < GPIO_NUM_MAX; i = (gpio_num_t)(i + 1)) {
     if (isPinValid(i)) {
-      auto nativeCharacteristicID = *baseCharacteristicID.getNative();
-      nativeCharacteristicID.uuid.uuid128[0] = i;
-
-      auto characteristic = service->createCharacteristic( BLEUUID(nativeCharacteristicID), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+      auto characteristic = service->createCharacteristic(createUUID(baseUUID, i), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
       characteristic->setCallbacks(callbacks);
     }
   }
