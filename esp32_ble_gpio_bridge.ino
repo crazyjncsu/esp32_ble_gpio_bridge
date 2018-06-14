@@ -8,14 +8,17 @@ gpio_num_t characteristicToPin(BLECharacteristic* characteristic) {
   return (gpio_num_t)characteristic->getUUID().getNative()->uuid.uuid128[0];
 }
 
-boolean isPinValid(gpio_num_t pin) {
-  if (pin < GPIO_NUM_0 || pin >= GPIO_NUM_MAX)
+boolean isPinValid(int pin) {
+  if (pin < 0 || pin >= GPIO_NUM_MAX)
     return false;
 
-  if (pin >= GPIO_NUM_7  && pin <= GPIO_NUM_10)
+  if (pin >= 6  && pin <= 11) // these seem to disconnect at best and crash device at worst
     return false;
 
-  if (pin >= GPIO_NUM_34  && pin <= GPIO_NUM_39) // can't output or pull up
+  if (pin == 20 || pin == 24 || pin == 29 || pin == 30 || pin == 31) // returns 0x0 by default and aren't in constants
+    return false;
+
+  if (pin >= 34  && pin <= 39) // can't output or pull up
     return false;
 
   return true;
@@ -32,6 +35,7 @@ class CharacteristicCallbacks: public BLECharacteristicCallbacks {
       auto pin = characteristicToPin(characteristic);
       gpio_set_direction(pin, GPIO_MODE_INPUT);
       gpio_set_pull_mode(pin, GPIO_PULLUP_ONLY);
+      delayMicroseconds(100); // required for pin capacitance before read
       auto level = (uint8_t)gpio_get_level(pin);
       characteristic->setValue(&level, 1);
     }
@@ -45,7 +49,7 @@ class CharacteristicCallbacks: public BLECharacteristicCallbacks {
 };
 
 void setup() {
-  BLEDevice::init("BLE-GPIO Bridge");
+  BLEDevice::init("ESP32 BLE-GPIO Bridge");
 
   auto baseUUID = BLEUUID("1117b92a-6922-46d8-8c9e-000000000000");
 
@@ -55,7 +59,7 @@ void setup() {
 
   auto callbacks = new CharacteristicCallbacks();
 
-  for (auto i = GPIO_NUM_0; i < GPIO_NUM_MAX; i = (gpio_num_t)(i + 1)) {
+  for (auto i = 0; i < GPIO_NUM_MAX; i++) {
     if (isPinValid(i)) {
       auto characteristic = service->createCharacteristic(createUUID(baseUUID, i), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
       characteristic->setCallbacks(callbacks);
