@@ -12,6 +12,9 @@ boolean isPinValid(int pin) {
   if (pin < 0 || pin >= GPIO_NUM_MAX)
     return false;
 
+  if (pin == 1 || pin == 3) // always high output and won't switch to low; labeled as tx0 and rx0
+    return false;
+
   if (pin >= 6  && pin <= 11) // these seem to disconnect at best and crash device at worst
     return false;
 
@@ -61,6 +64,8 @@ void setup() {
 
   for (auto i = 0; i < GPIO_NUM_MAX; i++) {
     if (isPinValid(i)) {
+      gpio_set_direction((gpio_num_t)i, GPIO_MODE_OUTPUT);
+      gpio_set_level((gpio_num_t)i, 0);
       auto characteristic = service->createCharacteristic(createUUID(baseUUID, i), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
       characteristic->setCallbacks(callbacks);
     }
