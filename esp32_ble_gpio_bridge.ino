@@ -72,7 +72,7 @@ void setup() {
   }
 
   service->start();
-  server->getAdvertising()->start();
+  server->startAdvertising();
 }
 
 void loop() {
