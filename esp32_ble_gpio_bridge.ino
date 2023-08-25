@@ -9,6 +9,9 @@ gpio_num_t characteristicToPin(BLECharacteristic* characteristic) {
 }
 
 boolean isPinValid(int pin) {
+  // GPIO_IS_VALID_OUTPUT_GPIO isn't quite adequate because it includes some pins where
+  // initializing them causes malfunctions
+  
   if (pin < 0 || pin >= GPIO_NUM_MAX)
     return false;
 
@@ -53,17 +56,20 @@ class CharacteristicCallbacks: public BLECharacteristicCallbacks {
 
 void setup() {
   BLEDevice::init("ESP32 BLE-GPIO Bridge");
+  BLEDevice::setPower(ESP_PWR_LVL_P7);
 
   auto baseUUID = BLEUUID("1117b92a-6922-46d8-8c9e-000000000000");
+  auto serviceUUID = createUUID(baseUUID, 255);
 
   auto server = BLEDevice::createServer();
 
-  auto service = server->createService(createUUID(baseUUID, 255), GPIO_NUM_MAX * 3); // number of handles is related to number of characteristics
+  auto service = server->createService(serviceUUID, GPIO_NUM_MAX * 3); // number of handles is related to number of characteristics
 
   auto callbacks = new CharacteristicCallbacks();
 
-  for (auto i = 0; i < GPIO_NUM_MAX; i++) {
+  for (auto i = 0; i < GPIO_NUM_MAX; i++) {    
     if (isPinValid(i)) {
+      //PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[i], PIN_FUNC_GPIO); // otherwise jtag or something
       gpio_set_direction((gpio_num_t)i, GPIO_MODE_OUTPUT);
       gpio_set_level((gpio_num_t)i, 0);
       auto characteristic = service->createCharacteristic(createUUID(baseUUID, i), BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
@@ -72,6 +78,9 @@ void setup() {
   }
 
   service->start();
+
+  auto advertising = server->getAdvertising();
+  advertising->addServiceUUID(serviceUUID);
   server->startAdvertising();
 }
 
